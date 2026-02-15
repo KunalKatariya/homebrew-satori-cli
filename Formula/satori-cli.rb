@@ -6,7 +6,7 @@ class SatoriCli < Formula
   url "https://github.com/KunalKatariya/satori-cli/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "940144653281d4f4a4a8610629ceb56ef039476d129ce332495da847863f8fc9"
   license "MIT"
-  head "https://github.com/KunalKatariya/satori-cli.git", branch: "main"
+  version "0.1.0"
 
   depends_on "python@3.11"
   depends_on "portaudio"
@@ -14,53 +14,58 @@ class SatoriCli < Formula
   depends_on "poetry"
 
   def install
-    # Create virtualenv
+    # Create a virtual environment
     venv = virtualenv_create(libexec, "python3.11")
 
-    # Install poetry and dependencies
+    # Upgrade pip
     system libexec/"bin/pip", "install", "--upgrade", "pip"
+
+    # Install poetry in the virtual environment
     system libexec/"bin/pip", "install", "poetry"
 
-    # Install project using poetry
-    cd buildpath do
-      system libexec/"bin/poetry", "install", "--only", "main", "--no-root"
-      system libexec/"bin/poetry", "build", "--format", "wheel"
-      wheel = Dir["dist/*.whl"].first
-      system libexec/"bin/pip", "install", wheel
-    end
+    # Build the package
+    system libexec/"bin/poetry", "build", "--format", "wheel"
 
-    # Create wrapper script
-    (bin/"satori").write_env_script libexec/"bin/satori", PATH: "#{libexec}/bin:$PATH"
+    # Install the wheel
+    venv.pip_install Dir["dist/*.whl"].first
+
+    # Create a wrapper script
+    (bin/"satori").write_env_script libexec/"bin/satori", {}
   end
 
   def caveats
     <<~EOS
-      🎤 Satori CLI - Real-time Transcription & Translation
+      Satori CLI has been installed!
 
-      Required for full functionality:
+      First-time setup:
+        1. Run: satori init
+           This will download and set up whisper.cpp with Metal GPU acceleration.
 
-      1. whisper.cpp (GPU-accelerated transcription):
-         $ satori init
+        2. Install BlackHole for audio capture:
+           brew install blackhole-2ch
 
-      2. BlackHole (system audio capture for YouTube/Spotify):
-         $ brew install blackhole-2ch
+        3. Configure audio routing:
+           - Open Audio MIDI Setup
+           - Create a Multi-Output Device with your speakers + BlackHole
+           - In Satori settings, select BlackHole as input device
 
-      Quick Start:
-         $ satori init          # Interactive setup (installs whisper.cpp)
-         $ satori devices       # List audio devices
-         $ satori translate     # Start transcribing
+      Usage examples:
+        # Real-time transcription
+        satori transcribe
 
-      Examples:
-         $ satori translate --loopback           # Transcribe YouTube
-         $ satori translate --model large        # Better accuracy
-         $ satori translate --translate-to en    # With translation
+        # With translation (Japanese → English)
+        satori transcribe --translate --target-lang en
 
-      Documentation: #{homepage}
+        # Configure settings
+        satori config
+
+      For more information, visit:
+        https://github.com/KunalKatariya/satori-cli
     EOS
   end
 
   test do
-    assert_match "Satori", shell_output("#{bin}/satori --version")
+    assert_match version.to_s, shell_output("#{bin}/satori --version")
     assert_match "Usage:", shell_output("#{bin}/satori --help")
   end
 end
